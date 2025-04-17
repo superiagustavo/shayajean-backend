@@ -1,7 +1,6 @@
-rom fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fpdf import FPDF
-from fastapi.responses import FileResponse
 import os
 from supabase import create_client, Client
 
@@ -12,7 +11,6 @@ SUPABASE_URL = "https://eaubrpnwyzmsxxawdlqa.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhdWJycG53eXptc3h4YXdkbHFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjIzMTIsImV4cCI6MjA2MDQ5ODMxMn0.zz5kWKbTpzFfjq-iw_awaLdlVjG_NuiZWh_fvaprC2A"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Modelo de dados recebido via POST
 class PDFData(BaseModel):
     title: str
     content: str
@@ -30,11 +28,13 @@ def generate_pdf(data: PDFData):
 
         with open(filepath, "rb") as f:
             file_content = f.read()
-            # Upload com content-type correto e upsert ativado
             supabase.storage.from_("shayajean-docs").upload(
                 path="output.pdf",
                 file=file_content,
-                file_options={"content-type": "application/pdf", "upsert": True}
+                file_options={
+                    "content-type": "application/pdf",
+                    "upsert": True
+                }
             )
 
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/output.pdf"
@@ -48,4 +48,5 @@ def generate_pdf(data: PDFData):
 
 @app.get("/")
 def root():
-    return {"message": "API de geração de PDF com upload para Supabase está ativa!"}
+    return {"message": "API rodando com sucesso!"}
+
