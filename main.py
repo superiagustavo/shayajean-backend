@@ -25,13 +25,14 @@ async def generate_pdf(data: PDFRequest):
         filename = f"{uuid.uuid4()}.pdf"
         filepath = f"/tmp/{filename}"
 
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        pdf.multi_cell(190, 10, f"{data.title}")
+pdf = FPDF()
+pdf.add_page()
+pdf.set_font("Arial", size=12)
 
-{data.content}")
-        pdf.output(filepath)
+pdf.multi_cell(190, 10, f"{data.title}")
+pdf.multi_cell(190, 10, f"{data.content}")
+
+pdf.output(filepath)
 
         with open(filepath, "rb") as f:
             res = supabase.storage.from_(SUPABASE_BUCKET).upload(filename, f, {"content-type": "application/pdf", "cacheControl": "3600", "upsert": True})
