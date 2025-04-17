@@ -28,7 +28,7 @@ async def generate_pdf(data: PDFRequest):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.multi_cell(190, 10, f"{data.title}
+        pdf.multi_cell(190, 10, f"{data.title}")
 
 {data.content}")
         pdf.output(filepath)
