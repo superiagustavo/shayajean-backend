@@ -1,44 +1,48 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from fpdf import FPDF
+from fastapi.responses import FileResponse
 import os
 from supabase import create_client, Client
-from fpdf import FPDF
-import uuid
 
 app = FastAPI()
 
-# Supabase setup
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-SUPABASE_BUCKET = "shayajean-docs"
-
+# Dados do Supabase
+SUPABASE_URL = "https://eaubrpnwyzmsxxawdlqa.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhdWJycG53eXptc3h4YXdkbHFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MjIzMTIsImV4cCI6MjA2MDQ5ODMxMn0.zz5kWKbTpzFfjq-iw_awaLdlVjG_NuiZWh_fvaprC2A"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-class PDFRequest(BaseModel):
+# Modelo de dados esperado
+class PDFData(BaseModel):
     title: str
     content: str
 
 @app.post("/generate-pdf")
-async def generate_pdf(data: PDFRequest):
+def generate_pdf(data: PDFData):
+    filepath = "output.pdf"
     try:
-        filename = f"{uuid.uuid4()}.pdf"
-        filepath = f"/tmp/{filename}"
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
 
-pdf = FPDF()
-pdf.add_page()
-pdf.set_font("Arial", size=12)
+        pdf.multi_cell(190, 10, f"{data.title}")
+        pdf.multi_cell(190, 10, f"{data.content}")
 
-pdf.multi_cell(190, 10, f"{data.title}")
-pdf.multi_cell(190, 10, f"{data.content}")
-
-pdf.output(filepath)
+        pdf.output(filepath)
 
         with open(filepath, "rb") as f:
-            res = supabase.storage.from_(SUPABASE_BUCKET).upload(filename, f, {"content-type": "application/pdf", "cacheControl": "3600", "upsert": True})
-        
-        public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(filename)
+            file_content = f.read()
+            supabase.storage.from_("shayajean-docs").upload("output.pdf", file_content)
 
-        return {"success": True, "url": public_url}
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/output.pdf"
+        return {"url": public_url}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+@app.get("/")
+def root():
+    return {"message": "API para geração e upload de PDF ativa!"}
