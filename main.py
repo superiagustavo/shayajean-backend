@@ -1,11 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from fpdf import FPDF
-import os
 from fastapi.responses import JSONResponse
 from supabase import create_client, Client
-from fastapi import Request
 from datetime import datetime
+import os
 
 app = FastAPI()
 
@@ -18,7 +17,6 @@ class PDFData(BaseModel):
     title: str
     content: str
 
-
 @app.post("/generate-pdf")
 async def generate_pdf(request: Request):
     body = await request.json()
@@ -29,8 +27,8 @@ async def generate_pdf(request: Request):
     if not title or not content:
         raise HTTPException(status_code=400, detail="Campos 'title' e 'content' são obrigatórios.")
 
+    # Nome do arquivo com timestamp para evitar sobrescrita
     filename = f"{title.replace(' ', '_')}_{int(datetime.now().timestamp())}.pdf"
-    filename = f"{data.title.replace(' ', '_')}.pdf"
     filepath = f"/tmp/{filename}"
 
     try:
@@ -38,15 +36,15 @@ async def generate_pdf(request: Request):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.multi_cell(190, 10, data.title)
-        pdf.multi_cell(190, 10, data.content)
+        pdf.multi_cell(190, 10, title)
+        pdf.multi_cell(190, 10, content)
         pdf.output(filepath)
 
-        # Leitura do arquivo
+        # Leitura do conteúdo do arquivo
         with open(filepath, "rb") as f:
             file_content = f.read()
 
-        # Upload no Supabase com header correto
+        # Upload no Supabase
         supabase.storage.from_("shayajean-docs").upload(
             filename,
             file_content,
@@ -55,7 +53,7 @@ async def generate_pdf(request: Request):
             }
         )
 
-        # Geração da URL pública
+        # Link público
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{filename}"
         print("LOG UPLOAD:", public_url)
 
