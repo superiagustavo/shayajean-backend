@@ -4,6 +4,7 @@ from fpdf import FPDF
 import os
 from fastapi.responses import JSONResponse
 from supabase import create_client, Client
+from fastapi import Request
 
 app = FastAPI()
 
@@ -16,8 +17,18 @@ class PDFData(BaseModel):
     title: str
     content: str
 
+
 @app.post("/generate-pdf")
-def generate_pdf(data: PDFData):
+async def generate_pdf(request: Request):
+    body = await request.json()
+    
+    title = body.get("title")
+    content = body.get("content")
+
+    if not title or not content:
+        raise HTTPException(status_code=400, detail="Campos 'title' e 'content' são obrigatórios.")
+
+    filename = f"{title.replace(' ', '_')}_{int(datetime.now().timestamp())}.pdf"
     filename = f"{data.title.replace(' ', '_')}.pdf"
     filepath = f"/tmp/{filename}"
 
