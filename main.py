@@ -34,15 +34,27 @@ async def generate_pdf(request: Request):
         pdf = FPDF()
         pdf.add_page()
 
-        if os.path.exists("DejaVuSans.ttf"):
-            pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
-            pdf.set_font("DejaVu", size=12)
-        else:
-            pdf.set_font("Arial", size=12)
+        # Geração do PDF com suporte a unicode usando DejaVuSans se disponível
+        try:
+            if os.path.exists("DejaVuSans.ttf"):
+                pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
+                pdf.set_font("DejaVu", size=12)
+            else:
+                pdf.set_font("Arial", size=12)
 
-        pdf.multi_cell(190, 10, title)
-        pdf.multi_cell(190, 10, content)
-        pdf.output(filepath)
+            # Proteções extras
+            title = title if isinstance(title, str) else "PDF Sem Título"
+            content = content if isinstance(content, str) else ""
+
+            # Só adiciona texto depois que a fonte estiver definida
+            pdf.multi_cell(190, 10, title)
+            pdf.ln(5)
+            pdf.multi_cell(190, 10, content)
+            pdf.output(filepath)
+
+        except Exception as e:
+            print("ERRO AO GERAR PDF:", str(e))
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar o PDF: {str(e)}")
 
         with open(filepath, "rb") as f:
             file_content = f.read()
