@@ -34,7 +34,6 @@ async def generate_pdf(request: Request):
         pdf = FPDF()
         pdf.add_page()
 
-        # Geração do PDF com suporte a unicode usando DejaVuSans se disponível
         try:
             if os.path.exists("DejaVuSans.ttf"):
                 pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
@@ -42,11 +41,9 @@ async def generate_pdf(request: Request):
             else:
                 pdf.set_font("Arial", size=12)
 
-            # Proteções extras
             title = title if isinstance(title, str) else "PDF Sem Título"
             content = content if isinstance(content, str) else ""
 
-            # Só adiciona texto depois que a fonte estiver definida
             pdf.multi_cell(190, 10, title)
             pdf.ln(5)
             pdf.multi_cell(190, 10, content)
@@ -59,13 +56,17 @@ async def generate_pdf(request: Request):
         with open(filepath, "rb") as f:
             file_content = f.read()
 
-        supabase.storage.from_("shayajean-docs").upload(
-            filename,
-            file_content,
-            {
-                "content-type": "application/pdf"
-            }
-        )
+        try:
+            supabase.storage.from_("shayajean-docs").upload(
+                filename,
+                file_content,
+                {
+                    "content-type": "application/pdf"
+                }
+            )
+        except Exception as e:
+            print("ERRO NO UPLOAD:", str(e))
+            raise HTTPException(status_code=500, detail=f"Erro ao subir o arquivo no Supabase: {str(e)}")
 
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{filename}"
         print("LOG UPLOAD:", public_url)
@@ -73,8 +74,8 @@ async def generate_pdf(request: Request):
         return JSONResponse(content={"url": public_url}, media_type="application/json")
 
     except Exception as e:
-        print("ERRO AO SUBIR:", str(e))
-        raise HTTPException(status_code=500, detail="Erro ao subir o arquivo no Supabase")
+        print("ERRO GERAL:", str(e))
+        raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
 
     finally:
         if os.path.exists(filepath):
@@ -83,3 +84,4 @@ async def generate_pdf(request: Request):
 @app.get("/")
 def root():
     return {"message": "API operacional"}
+
