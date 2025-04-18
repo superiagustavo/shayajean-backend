@@ -34,11 +34,13 @@ def generate_pdf(data: PDFData):
             file_content = f.read()
 
         # ENVIA COM HEADER CORRETO
-        supabase.storage.from_("shayajean-docs").upload(
-            filename,
-            file_content,
-            {"content-type": "application/pdf"}
-        )
+supabase.storage.from_("shayajean-docs").upload(
+    nome_arquivo,
+    file_content,
+    {
+        "content-type": "application/pdf"
+    }
+)
 
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{filename}"
         print("LOG UPLOAD:", public_url)
