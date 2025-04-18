@@ -19,12 +19,11 @@ class PDFData(BaseModel):
 @app.post("/generate-pdf")
 def generate_pdf(data: PDFData):
     try:
-        # Nome do arquivo baseado no título
         safe_title = data.title.strip().replace(" ", "_")
         filename = f"{safe_title}.pdf"
-        filepath = f"/tmp/{filename}"  # uso do /tmp recomendado no Render
+        filepath = f"/tmp/{filename}"
 
-        # Geração do PDF
+        # Gera o PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
@@ -35,8 +34,16 @@ def generate_pdf(data: PDFData):
         # Upload para Supabase
         with open(filepath, "rb") as f:
             file_content = f.read()
-            supabase.storage.from_("shayajean-docs").upload(filename, file_content)
+            result = supabase.storage.from_("shayajean-docs").upload(
+                path=filename,
+                file=file_content,
+                file_options={
+                    "content-type": "application/pdf",
+                    "upsert": True  # força sobrescrita
+                }
+            )
 
+        # Gera URL pública
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{filename}"
         return {"url": public_url}
 
@@ -45,6 +52,7 @@ def generate_pdf(data: PDFData):
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)
+
 
 @app.get("/")
 def root():
