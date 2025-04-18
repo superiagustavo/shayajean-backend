@@ -1,61 +1,56 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fpdf import FPDF
+from fastapi.responses import FileResponse
 import os
-import uuid
 from supabase import create_client, Client
 
 app = FastAPI()
 
-# Supabase credentials
+# Supabase configs
 SUPABASE_URL = "https://qqfsdibkhzonymwcttjj.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZnNkaWJraHpvbnltd2N0dGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5Mjc5MTksImV4cCI6MjA2MDUwMzkxOX0.rRwwa8w_MLD_eVHkqsMw2hpIPj_uqxSln1EACuMf4vo"  # sua chave completa
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZnNkaWJraHpvbnltd2N0dGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5Mjc5MTksImV4cCI6MjA2MDUwMzkxOX0.rRwwa8w_MLD_eVHkqsMw2hpIPj_uqxSln1EACuMf4vo"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Modelo de dados esperado
 class PDFData(BaseModel):
     title: str
     content: str
 
 @app.post("/generate-pdf")
 def generate_pdf(data: PDFData):
-    try:
-        # Nome seguro para o arquivo
-        safe_title = data.title.strip().replace(" ", "_").replace("/", "-")
-        filename = f"{safe_title}_{uuid.uuid4().hex}.pdf"
-        filepath = f"/tmp/{filename}"
+    # Define o nome do arquivo com base no título (removendo espaços)
+    nome_arquivo = f"{data.title.replace(' ', '_')}.pdf"
+    filepath = f"/tmp/{nome_arquivo}"
 
-        # Gera PDF
+    try:
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
+
         pdf.multi_cell(190, 10, f"{data.title}")
         pdf.multi_cell(190, 10, f"{data.content}")
+
         pdf.output(filepath)
 
-        # Lê o arquivo
         with open(filepath, "rb") as f:
-            file_data = f.read()
+            file_content = f.read()
 
-        # Força upload
-        result = supabase.storage.from_("shayajean-docs").upload(
-            path=filename,
-            file=file_data,
-            file_options={"content-type": "application/pdf", "upsert": True}
+        # Upload no Supabase com headers corretos
+        supabase.storage.from_("shayajean-docs").upload(
+            nome_arquivo,
+            file_content,
+            {"content-type": "application/pdf"}
         )
 
-        print("LOG UPLOAD:", result)
-
-        # Valida erro explícito
-        if result.get("error"):
-            raise Exception(result["error"]["message"])
-
-        # Link final
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{filename}"
-        return {"message": "PDF gerado com sucesso!", "url": public_url}
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{nome_arquivo}"
+        print(f"LOG UPLOAD: {public_url}")
+        return {"url": public_url}
 
     except Exception as e:
-        print("ERRO:", e)
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar ou subir o PDF: {str(e)}")
+        print(f"ERRO: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)
