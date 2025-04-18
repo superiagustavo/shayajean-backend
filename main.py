@@ -4,7 +4,6 @@ from fpdf import FPDF
 import os
 from fastapi.responses import JSONResponse
 from supabase import create_client, Client
-import mimetypes
 
 app = FastAPI()
 
@@ -23,6 +22,7 @@ def generate_pdf(data: PDFData):
     filepath = f"/tmp/{filename}"
 
     try:
+        # Geração do PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
@@ -30,23 +30,20 @@ def generate_pdf(data: PDFData):
         pdf.multi_cell(190, 10, data.content)
         pdf.output(filepath)
 
+        # Leitura do arquivo
         with open(filepath, "rb") as f:
             file_content = f.read()
 
-        # ENVIA COM HEADER CORRETO
-    
-try:
-    supabase.storage.from_("shayajean-docs").upload(
-        nome_arquivo,
-        file_content,
-        {
-            "content-type": "application/pdf"
-        }
-    )
-except Exception as e:
-    print("ERRO AO SUBIR:", str(e))
-    raise HTTPException(status_code=500, detail="Erro ao subir o arquivo no Supabase")
+        # Upload no Supabase com header correto
+        supabase.storage.from_("shayajean-docs").upload(
+            filename,
+            file_content,
+            {
+                "content-type": "application/pdf"
+            }
+        )
 
+        # Geração da URL pública
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{filename}"
         print("LOG UPLOAD:", public_url)
 
@@ -54,15 +51,12 @@ except Exception as e:
 
     except Exception as e:
         print("ERRO AO SUBIR:", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro ao subir o arquivo no Supabase")
 
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)
 
-@app.get("/")
-def root():
-    return {"message": "API operacional"}
 @app.get("/")
 def root():
     return {"message": "API operacional"}
