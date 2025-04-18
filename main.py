@@ -35,10 +35,10 @@ async def generate_pdf(request: Request):
         pdf.add_page()
 
         try:
-            font_path = os.path.join(os.path.dirname(__file__), "DejaVuSans.ttf")
-             if os.path.exists(font_path):
-             pdf.add_font("DejaVu", "", font_path, uni=True)
-                pdf.set_font("DejaVu", size=12)
+            font_path = os.path.join(os.path.dirname(__file__), "fonts/NotoColorEmoji.ttf")
+            if os.path.exists(font_path):
+                pdf.add_font("Emoji", "", font_path, uni=True)
+                pdf.set_font("Emoji", size=12)
             else:
                 pdf.set_font("Arial", size=12)
 
@@ -85,4 +85,3 @@ async def generate_pdf(request: Request):
 @app.get("/")
 def root():
     return {"message": "API operacional"}
-
