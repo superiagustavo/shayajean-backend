@@ -4,6 +4,7 @@ from fpdf import FPDF
 from fastapi.responses import FileResponse
 import os
 from supabase import create_client, Client
+import urllib.parse
 
 app = FastAPI()
 
@@ -19,41 +20,49 @@ class PDFData(BaseModel):
 
 @app.post("/generate-pdf")
 def generate_pdf(data: PDFData):
-    # Define o nome do arquivo com base no título (removendo espaços)
+    # Sanitizar nome do arquivo baseado no título
     nome_arquivo = f"{data.title.replace(' ', '_')}.pdf"
-    filepath = f"/tmp/{nome_arquivo}"
+    filepath = nome_arquivo
 
     try:
+        # Gerar PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-
         pdf.multi_cell(190, 10, f"{data.title}")
         pdf.multi_cell(190, 10, f"{data.content}")
-
         pdf.output(filepath)
 
+        # Upload para Supabase
         with open(filepath, "rb") as f:
             file_content = f.read()
+            supabase.storage.from_("shayajean-docs").upload(
+                nome_arquivo,
+                file_content,
+                {"content-type": "application/pdf"}
+            )
 
-        # Upload no Supabase com headers corretos
-        supabase.storage.from_("shayajean-docs").upload(
-            nome_arquivo,
-            file_content,
-            {"content-type": "application/pdf"}
-        )
+        # Link público formatado
+        encoded_filename = urllib.parse.quote(nome_arquivo)
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{encoded_filename}"
 
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{nome_arquivo}"
-        print(f"LOG UPLOAD: {public_url}")
-        return {"url": public_url}
+        # Retorno formatado estilo GPT personalizado
+        return {
+            "mensagem": "📄 Documento gerado com sucesso!",
+            "link": public_url,
+            "gpt_resposta": f"Aqui está seu PDF: [Clique aqui para abrir o documento gerado]({public_url})"
+        }
 
     except Exception as e:
-        print(f"ERRO: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)
+
+@app.get("/")
+def root():
+    return {"message": "API operacional"}
 
 @app.get("/")
 def root():
