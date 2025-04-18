@@ -21,21 +21,25 @@ class PDFData(BaseModel):
 async def generate_pdf(request: Request):
     body = await request.json()
     
-    title = body.get("title")
+    title = body.get("title", "PDF Sem Título")
     content = body.get("content")
 
-    if not title or not content:
-        raise HTTPException(status_code=400, detail="Campos 'title' e 'content' são obrigatórios.")
+    if not content:
+        raise HTTPException(status_code=400, detail="Campo 'content' é obrigatório.")
 
     # Nome do arquivo com timestamp para evitar sobrescrita
     filename = f"{title.replace(' ', '_')}_{int(datetime.now().timestamp())}.pdf"
     filepath = f"/tmp/{filename}"
 
     try:
-        # Geração do PDF
+        # Geração do PDF com suporte a unicode usando DejaVuSans se disponível
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", size=12)
+        if os.path.exists("DejaVuSans.ttf"):
+            pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
+            pdf.set_font("DejaVu", size=12)
+        else:
+            pdf.set_font("Arial", size=12)
         pdf.multi_cell(190, 10, title)
         pdf.multi_cell(190, 10, content)
         pdf.output(filepath)
