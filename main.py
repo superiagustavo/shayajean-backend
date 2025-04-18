@@ -34,13 +34,18 @@ def generate_pdf(data: PDFData):
             file_content = f.read()
 
         # ENVIA COM HEADER CORRETO
-supabase.storage.from_("shayajean-docs").upload(
-    nome_arquivo,
-    file_content,
-    {
-        "content-type": "application/pdf"
-    }
-)
+    
+try:
+    supabase.storage.from_("shayajean-docs").upload(
+        nome_arquivo,
+        file_content,
+        {
+            "content-type": "application/pdf"
+        }
+    )
+except Exception as e:
+    print("ERRO AO SUBIR:", str(e))
+    raise HTTPException(status_code=500, detail="Erro ao subir o arquivo no Supabase")
 
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{filename}"
         print("LOG UPLOAD:", public_url)
