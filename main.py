@@ -39,6 +39,10 @@ async def generate_pdf(request: Request):
 
         try:
             font_path = os.path.join(os.path.dirname(__file__), "fonts/NotoColorEmoji.ttf")
+
+            print("Fonte existe?", os.path.exists(font_path))
+            print("Caminho absoluto:", font_path)
+            
             if os.path.exists(font_path):
                 pdf.add_font("NotoColorEmoji", "", font_path, uni=True)
                 pdf.set_font("NotoColorEmoji", size=12)
