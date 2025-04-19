@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from supabase import create_client, Client
 from datetime import datetime
 import os
+import re
 
 # Certifique-se de que o pacote fpdf2 esteja instalado corretamente
 # Execute no terminal: pip install fpdf2
@@ -19,6 +20,10 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 class PDFData(BaseModel):
     title: str
     content: str
+
+def contains_emoji(text):
+    emoji_pattern = re.compile("[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF]+", flags=re.UNICODE)
+    return bool(emoji_pattern.search(text))
 
 @app.post("/generate-pdf")
 async def generate_pdf(request: Request):
@@ -37,29 +42,33 @@ async def generate_pdf(request: Request):
         pdf = FPDF()
         pdf.add_page()
 
-        try:
-            font_path = os.path.join(os.path.dirname(__file__), "fonts/NotoColorEmoji.ttf")
+        font_path_emoji = os.path.join(os.path.dirname(__file__), "fonts/NotoColorEmoji.ttf")
+        has_emoji_font = os.path.exists(font_path_emoji)
 
-            print("Fonte existe?", os.path.exists(font_path))
-            print("Caminho absoluto:", font_path)
-            
-            if os.path.exists(font_path):
-                pdf.add_font("NotoColorEmoji", "", font_path, uni=True)
-                pdf.set_font("NotoColorEmoji", size=12)
-            else:
-                pdf.set_font("Arial", size=12)
+        if has_emoji_font:
+            pdf.add_font("NotoColorEmoji", "", font_path_emoji, uni=True)
 
-            title = title if isinstance(title, str) else "PDF Sem Título"
-            content = content if isinstance(content, str) else ""
+        pdf.set_font("Arial", size=12)
 
-            pdf.multi_cell(190, 10, title)
-            pdf.ln(5)
-            pdf.multi_cell(190, 10, content)
-            pdf.output(filepath)
+        def write_mixed_text(text):
+            emoji_pattern = re.compile("([\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF])", flags=re.UNICODE)
+            parts = emoji_pattern.split(text)
+            for part in parts:
+                if contains_emoji(part) and has_emoji_font:
+                    pdf.set_font("NotoColorEmoji", size=12)
+                else:
+                    pdf.set_font("Arial", size=12)
+                pdf.write(10, part)
+            pdf.ln(10)
 
-        except Exception as e:
-            print("ERRO AO GERAR PDF:", str(e))
-            raise HTTPException(status_code=500, detail=f"Erro ao gerar o PDF: {str(e)}")
+        pdf.set_font("Arial", size=14)
+        pdf.cell(0, 10, title, ln=True)
+        pdf.ln(5)
+
+        for line in content.split('\n'):
+            write_mixed_text(line)
+
+        pdf.output(filepath)
 
         with open(filepath, "rb") as f:
             file_content = f.read()
