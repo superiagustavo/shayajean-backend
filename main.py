@@ -46,43 +46,41 @@ async def generate_pdf(request: Request):
             raise HTTPException(status_code=500, detail="Fonte necessária não encontrada.")
 
         def is_emoji(char):
-            return any(ord(c) >= 0x1F300 and ord(c) <= 0x1FAFF for c in char)
+            return any([
+                '\U0001F300' <= char <= '\U0001FAFF',
+                '\u2600' <= char <= '\u26FF',
+                '\u2700' <= char <= '\u27BF'
+            ])
 
-        def write_safe_line(text, font_name):
+        def write_chunk(text, font_name):
             pdf.set_font(font_name, size=12)
             try:
-                wrapped = pdf.multi_cell(0, 10, text, split_only=True)
-                for w in wrapped:
-                    pdf.multi_cell(0, 10, w)
+                pdf.multi_cell(0, 10, text)
             except Exception:
                 pdf.set_font(font_name, size=10)
-                pdf.multi_cell(0, 10, text)
+                pdf.multi_cell(0, 12, text)
 
         pdf.set_font("TextFont", size=14)
-        write_safe_line(title, "TextFont")
+        write_chunk(title, "TextFont")
         pdf.ln(5)
 
         for line in content.split('\n'):
-            buffer = ""
+            word_buffer = ""
             current_font = "TextFont"
+
             for char in line:
                 font = "SegoeEmoji" if is_emoji(char) else "TextFont"
                 if font != current_font:
-                    if buffer:
-                        write_safe_line(buffer, current_font)
-                        buffer = ""
+                    if word_buffer:
+                        write_chunk(word_buffer, current_font)
+                        word_buffer = ""
                     current_font = font
+                word_buffer += char
 
-                if pdf.get_string_width(char) > 180:
-                    write_safe_line(char, font)
-                elif pdf.get_string_width(buffer + char) > 180:
-                    write_safe_line(buffer, current_font)
-                    buffer = char
-                else:
-                    buffer += char
+            if word_buffer:
+                write_chunk(word_buffer, current_font)
 
-            if buffer:
-                write_safe_line(buffer, current_font)
+            pdf.ln(3)
 
         pdf.output(filepath)
 
