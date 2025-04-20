@@ -6,6 +6,7 @@ from supabase import create_client, Client
 from datetime import datetime
 import os
 import re
+import textwrap
 
 # Certifique-se de que o pacote fpdf2 esteja instalado corretamente
 # Execute no terminal: pip install fpdf2
@@ -50,8 +51,11 @@ async def generate_pdf(request: Request):
         pdf.cell(0, 10, title, ln=True)
         pdf.ln(5)
 
+        pdf.set_font("SegoeEmoji", size=12)
         for line in content.split('\n'):
-            pdf.multi_cell(0, 10, line)
+            wrapped_lines = textwrap.wrap(line, width=80)
+            for wrap_line in wrapped_lines:
+                pdf.multi_cell(0, 10, wrap_line)
 
         pdf.output(filepath)
 
