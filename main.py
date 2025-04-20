@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fpdf import FPDF
 from fastapi.responses import JSONResponse
@@ -10,8 +10,9 @@ import unicodedata
 
 app = FastAPI()
 
-SUPABASE_URL = "https://qqfsdibkhzonymwcttjj.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZnNkaWJraHpvbnltd2N0dGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5Mjc5MTksImV4cCI6MjA2MDUwMzkxOX0.rRwwa8w_MLD_eVHkqsMw2hpIPj_uqxSln1EACuMf4vo"
+# Use variáveis de ambiente para segurança
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 class PDFData(BaseModel):
@@ -27,11 +28,9 @@ def remove_accents(text):
     return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
 @app.post("/generate-pdf")
-async def generate_pdf(request: Request):
-    body = await request.json()
-
-    title = body.get("title", "PDF Sem Título")
-    content = body.get("content")
+async def generate_pdf(data: PDFData):
+    title = data.title or "PDF Sem Título"
+    content = data.content
 
     if not content:
         raise HTTPException(status_code=400, detail="Campo 'content' é obrigatório.")
@@ -52,7 +51,8 @@ async def generate_pdf(request: Request):
             pdf.add_font("TextFont", "B", font_path_text, uni=True)
             pdf.set_font("TextFont", size=13)
         else:
-            raise HTTPException(status_code=500, detail="Fonte DejaVuSans.ttf não encontrada.")
+            # Fallback para fonte padrão se não encontrar DejaVuSans.ttf
+            pdf.set_font("Helvetica", size=13)
 
         aviso = "⚠️ Neste momento, os PDFs estão sendo gerados apenas com texto, sem os emojis."
         pdf.set_font("TextFont", size=10)
@@ -64,9 +64,9 @@ async def generate_pdf(request: Request):
         pdf.ln(5)
 
         pdf.set_font("TextFont", size=13)
-        max_width = pdf.w - 2 * pdf.l_margin  # largura disponível considerando margens
+        max_width = pdf.w - 2 * pdf.l_margin
 
-        clean_content = re.sub(r'[^clean_content = re.sub(r'[^\x20-~        
+        # Limpeza completa do conteúdo
         clean_content = re.sub(r'[^\x20-\x7E\u00A0-\u017F\u0180-\u024F\s]', '', remove_emojis(content))
         clean_content = re.sub(r'[\u200b\u200e\u202a-\u202e]', '', clean_content)
 
@@ -76,9 +76,7 @@ async def generate_pdf(request: Request):
                 char_width = pdf.get_string_width(char)
                 total_width = pdf.get_string_width(buffer + char)
                 if char_width == 0 or char_width != char_width:
-                    print(f"[IGNORADO] Caractere com largura inválida: {repr(char)}")
                     continue
-                print(f"[DEBUG] char: {repr(char)} width: {char_width:.2f} total: {total_width:.2f}")
                 if char_width > max_width:
                     pdf.multi_cell(0, 10, char)
                     buffer = ""
@@ -104,23 +102,19 @@ async def generate_pdf(request: Request):
                 }
             )
         except Exception as e:
-            print("ERRO NO UPLOAD:", str(e))
             raise HTTPException(status_code=500, detail=f"Erro ao subir o arquivo no Supabase: {str(e)}")
 
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/shayajean-docs/{filename}"
-        print("LOG UPLOAD:", public_url)
-
         return JSONResponse(content={
             "url": public_url,
             "mensagem": "PDF gerado com sucesso. Neste momento, os emojis foram removidos e o conteúdo está formatado apenas com texto."
         }, media_type="application/json")
 
     except Exception as e:
-        print("ERRO GERAL:", str(e))
         raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
 
     finally:
-        if os.path.exists(filepath):
+        if filepath and os.path.exists(filepath):
             os.remove(filepath)
 
 @app.get("/")
