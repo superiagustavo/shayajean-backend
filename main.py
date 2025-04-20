@@ -22,6 +22,10 @@ def remove_emojis(text):
     emoji_pattern = re.compile("[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF]+", flags=re.UNICODE)
     return emoji_pattern.sub(r"", text)
 
+def remove_accents(text):
+    nfkd_form = unicodedata.normalize('NFKD', text)
+    return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
 @app.post("/generate-pdf")
 async def generate_pdf(request: Request):
     body = await request.json()
@@ -32,7 +36,8 @@ async def generate_pdf(request: Request):
     if not content:
         raise HTTPException(status_code=400, detail="Campo 'content' é obrigatório.")
 
-    filename = f"{title.replace(' ', '_')}_{int(datetime.now().timestamp())}.pdf"
+    clean_title = remove_accents(remove_emojis(title))
+    filename = f"{clean_title.replace(' ', '_')}_{int(datetime.now().timestamp())}.pdf"
     filepath = f"/tmp/{filename}"
 
     try:
@@ -44,7 +49,8 @@ async def generate_pdf(request: Request):
 
         if os.path.exists(font_path_text):
             pdf.add_font("TextFont", "", font_path_text, uni=True)
-            pdf.set_font("TextFont", size=12)
+            pdf.add_font("TextFont", "B", font_path_text, uni=True)
+            pdf.set_font("TextFont", size=13)
         else:
             raise HTTPException(status_code=500, detail="Fonte DejaVuSans.ttf não encontrada.")
 
@@ -53,13 +59,26 @@ async def generate_pdf(request: Request):
         pdf.multi_cell(0, 10, aviso)
         pdf.ln(5)
 
-        pdf.set_font("TextFont", size=14)
-        pdf.multi_cell(0, 10, remove_emojis(title))
+        pdf.set_font("TextFont", style="B", size=14)
+        pdf.multi_cell(0, 10, clean_title)
         pdf.ln(5)
 
-        pdf.set_font("TextFont", size=12)
+        pdf.set_font("TextFont", size=13)
+        max_width = 180
+
         for line in remove_emojis(content).split('\n'):
-            pdf.multi_cell(0, 10, line)
+            buffer = ""
+            for char in line:
+                char_width = pdf.get_string_width(char)
+                total_width = pdf.get_string_width(buffer + char)
+                print(f"[DEBUG] char: '{char}' width: {char_width:.2f} total: {total_width:.2f}")
+                if total_width > max_width:
+                    pdf.multi_cell(0, 10, buffer)
+                    buffer = char
+                else:
+                    buffer += char
+            if buffer:
+                pdf.multi_cell(0, 10, buffer)
 
         pdf.output(filepath)
 
