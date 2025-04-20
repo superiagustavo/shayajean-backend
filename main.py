@@ -8,12 +8,8 @@ import os
 import re
 import unicodedata
 
-# Certifique-se de que o pacote fpdf2 esteja instalado corretamente
-# Execute no terminal: pip install fpdf2
-
 app = FastAPI()
 
-# Supabase configs
 SUPABASE_URL = "https://qqfsdibkhzonymwcttjj.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZnNkaWJraHpvbnltd2N0dGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5Mjc5MTksImV4cCI6MjA2MDUwMzkxOX0.rRwwa8w_MLD_eVHkqsMw2hpIPj_uqxSln1EACuMf4vo"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -50,16 +46,17 @@ async def generate_pdf(request: Request):
             raise HTTPException(status_code=500, detail="Fonte necessária não encontrada.")
 
         def is_emoji(char):
-            return any("\U0001F300" <= c <= "\U0001FAFF" for c in char)
+            return any(ord(c) >= 0x1F300 and ord(c) <= 0x1FAFF for c in char)
 
         def write_safe_line(text, font_name):
             pdf.set_font(font_name, size=12)
-            wrapped = pdf.multi_cell(0, 10, text, split_only=True)
-            for w in wrapped:
-                try:
+            try:
+                wrapped = pdf.multi_cell(0, 10, text, split_only=True)
+                for w in wrapped:
                     pdf.multi_cell(0, 10, w)
-                except Exception:
-                    pdf.multi_cell(0, 12, w)
+            except Exception:
+                pdf.set_font(font_name, size=10)
+                pdf.multi_cell(0, 10, text)
 
         pdf.set_font("TextFont", size=14)
         write_safe_line(title, "TextFont")
