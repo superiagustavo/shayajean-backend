@@ -66,13 +66,19 @@ async def generate_pdf(request: Request):
         pdf.set_font("TextFont", size=13)
         max_width = 180
 
-        for line in remove_emojis(content).split('\n'):
+        clean_content = re.sub(r'[^\x20-\x7E\u00A0-\u017F\u0180-\u024F\s]', '', remove_emojis(content))
+
+        for line in clean_content.split('\n'):
             buffer = ""
             for char in line:
                 char_width = pdf.get_string_width(char)
                 total_width = pdf.get_string_width(buffer + char)
                 print(f"[DEBUG] char: '{char}' width: {char_width:.2f} total: {total_width:.2f}")
-                if total_width + char_width > max_width:
+                if char_width > max_width:
+                    print(f"[FORÇANDO MULTI CELL] '{char}' é maior que largura máxima isolado")
+                    pdf.multi_cell(0, 10, char)
+                    buffer = ""
+                elif total_width > max_width:
                     pdf.multi_cell(0, 10, buffer)
                     buffer = char
                 else:
