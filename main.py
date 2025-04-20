@@ -37,6 +37,7 @@ async def generate_pdf(request: Request):
     try:
         pdf = FPDF()
         pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
 
         font_path = os.path.join(os.path.dirname(__file__), "fonts/seguiemj-1.35-flat.ttf")
         if os.path.exists(font_path):
