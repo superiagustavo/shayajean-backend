@@ -6,7 +6,6 @@ from supabase import create_client, Client
 from datetime import datetime
 import os
 import re
-import textwrap
 
 # Certifique-se de que o pacote fpdf2 esteja instalado corretamente
 # Execute no terminal: pip install fpdf2
@@ -48,14 +47,20 @@ async def generate_pdf(request: Request):
             raise HTTPException(status_code=500, detail="Fonte seguiemj-1.35-flat.ttf não encontrada.")
 
         pdf.set_font("SegoeEmoji", size=14)
-        pdf.cell(0, 10, title, ln=True)
+        pdf.multi_cell(0, 10, title)
         pdf.ln(5)
 
         pdf.set_font("SegoeEmoji", size=12)
         for line in content.split('\n'):
-            wrapped_lines = textwrap.wrap(line, width=80)
-            for wrap_line in wrapped_lines:
-                pdf.multi_cell(0, 10, wrap_line)
+            # Quebra por caractere para evitar erro de espaço horizontal insuficiente
+            buffer = ""
+            for char in line:
+                buffer += char
+                if pdf.get_string_width(buffer) > 180:
+                    pdf.multi_cell(0, 10, buffer)
+                    buffer = ""
+            if buffer:
+                pdf.multi_cell(0, 10, buffer)
 
         pdf.output(filepath)
 
