@@ -52,15 +52,17 @@ async def generate_pdf(request: Request):
 
         pdf.set_font("SegoeEmoji", size=12)
         for line in content.split('\n'):
-            # Quebra por caractere para evitar erro de espaço horizontal insuficiente
-            buffer = ""
-            for char in line:
-                buffer += char
-                if pdf.get_string_width(buffer) > 180:
-                    pdf.multi_cell(0, 10, buffer)
-                    buffer = ""
-            if buffer:
-                pdf.multi_cell(0, 10, buffer)
+            words = line.split(' ')
+            current_line = ""
+            for word in words:
+                test_line = f"{current_line} {word}" if current_line else word
+                if pdf.get_string_width(test_line) < 180:
+                    current_line = test_line
+                else:
+                    pdf.multi_cell(0, 10, current_line)
+                    current_line = word
+            if current_line:
+                pdf.multi_cell(0, 10, current_line)
 
         pdf.output(filepath)
 
