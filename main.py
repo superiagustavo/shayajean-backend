@@ -40,29 +40,42 @@ async def generate_pdf(request: Request):
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
 
-        font_path = os.path.join(os.path.dirname(__file__), "fonts/seguiemj-1.35-flat.ttf")
-        if os.path.exists(font_path):
-            pdf.add_font("SegoeEmoji", "", font_path, uni=True)
-            pdf.set_font("SegoeEmoji", size=12)
-        else:
-            raise HTTPException(status_code=500, detail="Fonte seguiemj-1.35-flat.ttf não encontrada.")
+        font_path_emoji = os.path.join(os.path.dirname(__file__), "fonts/seguiemj-1.35-flat.ttf")
+        font_path_text = os.path.join(os.path.dirname(__file__), "fonts/DejaVuSans.ttf")
 
-        pdf.set_font("SegoeEmoji", size=14)
+        if os.path.exists(font_path_emoji) and os.path.exists(font_path_text):
+            pdf.add_font("SegoeEmoji", "", font_path_emoji, uni=True)
+            pdf.add_font("TextFont", "", font_path_text, uni=True)
+        else:
+            raise HTTPException(status_code=500, detail="Fonte necessária não encontrada.")
+
+        def is_emoji(char):
+            return ord(char) >= 0x1F300 and ord(char) <= 0x1FAFF
+
+        pdf.set_font("TextFont", size=14)
         pdf.multi_cell(0, 10, title)
         pdf.ln(5)
 
-        pdf.set_font("SegoeEmoji", size=12)
         max_width = 180
-
         for line in content.split('\n'):
             buffer = ""
+            current_font = "TextFont"
             for char in line:
+                font = "SegoeEmoji" if is_emoji(char) else "TextFont"
+                if font != current_font:
+                    if buffer:
+                        pdf.set_font(current_font, size=12)
+                        pdf.multi_cell(0, 10, buffer)
+                        buffer = ""
+                    current_font = font
                 if pdf.get_string_width(buffer + char) > max_width:
+                    pdf.set_font(current_font, size=12)
                     pdf.multi_cell(0, 10, buffer)
                     buffer = char
                 else:
                     buffer += char
             if buffer:
+                pdf.set_font(current_font, size=12)
                 pdf.multi_cell(0, 10, buffer)
 
         pdf.output(filepath)
