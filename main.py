@@ -72,7 +72,7 @@ async def generate_pdf(request: Request):
                 char_width = pdf.get_string_width(char)
                 total_width = pdf.get_string_width(buffer + char)
                 print(f"[DEBUG] char: '{char}' width: {char_width:.2f} total: {total_width:.2f}")
-                if total_width > max_width:
+                if total_width + char_width > max_width:
                     pdf.multi_cell(0, 10, buffer)
                     buffer = char
                 else:
