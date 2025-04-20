@@ -21,10 +21,6 @@ class PDFData(BaseModel):
     title: str
     content: str
 
-def contains_emoji(text):
-    emoji_pattern = re.compile("[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF]+", flags=re.UNICODE)
-    return bool(emoji_pattern.search(text))
-
 @app.post("/generate-pdf")
 async def generate_pdf(request: Request):
     body = await request.json()
@@ -42,31 +38,19 @@ async def generate_pdf(request: Request):
         pdf = FPDF()
         pdf.add_page()
 
-        font_path_emoji = os.path.join(os.path.dirname(__file__), "fonts/NotoColorEmoji.ttf")
-        has_emoji_font = os.path.exists(font_path_emoji)
+        font_path = os.path.join(os.path.dirname(__file__), "fonts/seguiemj-1.35-flat.ttf")
+        if os.path.exists(font_path):
+            pdf.add_font("SegoeEmoji", "", font_path, uni=True)
+            pdf.set_font("SegoeEmoji", size=12)
+        else:
+            raise HTTPException(status_code=500, detail="Fonte seguiemj-1.35-flat.ttf não encontrada.")
 
-        if has_emoji_font:
-            pdf.add_font("NotoColorEmoji", "", font_path_emoji, uni=True)
-
-        pdf.set_font("Arial", size=12)
-
-        def write_mixed_text(text):
-            emoji_pattern = re.compile("([\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF])", flags=re.UNICODE)
-            parts = emoji_pattern.split(text)
-            for part in parts:
-                if contains_emoji(part) and has_emoji_font:
-                    pdf.set_font("NotoColorEmoji", size=12)
-                else:
-                    pdf.set_font("Arial", size=12)
-                pdf.write(10, part)
-            pdf.ln(10)
-
-        pdf.set_font("Arial", size=14)
+        pdf.set_font("SegoeEmoji", size=14)
         pdf.cell(0, 10, title, ln=True)
         pdf.ln(5)
 
         for line in content.split('\n'):
-            write_mixed_text(line)
+            pdf.multi_cell(0, 10, line)
 
         pdf.output(filepath)
 
