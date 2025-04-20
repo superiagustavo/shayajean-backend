@@ -10,9 +10,11 @@ import unicodedata
 
 app = FastAPI()
 
+# Supabase configs
 SUPABASE_URL = "https://qqfsdibkhzonymwcttjj.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZnNkaWJraHpvbnltd2N0dGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5Mjc5MTksImV4cCI6MjA2MDUwMzkxOX0.rRwwa8w_MLD_eVHkqsMw2hpIPj_uqxSln1EACuMf4vo"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 class PDFData(BaseModel):
     title: str
