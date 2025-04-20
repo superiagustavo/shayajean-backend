@@ -6,6 +6,7 @@ from supabase import create_client, Client
 from datetime import datetime
 import os
 import re
+import unicodedata
 
 # Certifique-se de que o pacote fpdf2 esteja instalado corretamente
 # Execute no terminal: pip install fpdf2
@@ -51,10 +52,18 @@ async def generate_pdf(request: Request):
         pdf.ln(5)
 
         pdf.set_font("SegoeEmoji", size=12)
+        max_width = 180
 
-        # Modificação para quebra automática de linha
         for line in content.split('\n'):
-            pdf.multi_cell(0, 10, line)  # Utilizando multi_cell diretamente para quebra automática
+            buffer = ""
+            for char in line:
+                if pdf.get_string_width(buffer + char) > max_width:
+                    pdf.multi_cell(0, 10, buffer)
+                    buffer = char
+                else:
+                    buffer += char
+            if buffer:
+                pdf.multi_cell(0, 10, buffer)
 
         pdf.output(filepath)
 
