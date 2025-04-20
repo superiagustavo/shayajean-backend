@@ -50,13 +50,21 @@ async def generate_pdf(request: Request):
             raise HTTPException(status_code=500, detail="Fonte necessária não encontrada.")
 
         def is_emoji(char):
-            return ord(char) >= 0x1F300 and ord(char) <= 0x1FAFF
+            return any("\U0001F300" <= c <= "\U0001FAFF" for c in char)
+
+        def write_safe_line(text, font_name):
+            pdf.set_font(font_name, size=12)
+            wrapped = pdf.multi_cell(0, 10, text, split_only=True)
+            for w in wrapped:
+                try:
+                    pdf.multi_cell(0, 10, w)
+                except Exception:
+                    pdf.multi_cell(0, 12, w)
 
         pdf.set_font("TextFont", size=14)
-        pdf.multi_cell(0, 10, title)
+        write_safe_line(title, "TextFont")
         pdf.ln(5)
 
-        max_width = 180
         for line in content.split('\n'):
             buffer = ""
             current_font = "TextFont"
@@ -64,19 +72,20 @@ async def generate_pdf(request: Request):
                 font = "SegoeEmoji" if is_emoji(char) else "TextFont"
                 if font != current_font:
                     if buffer:
-                        pdf.set_font(current_font, size=12)
-                        pdf.multi_cell(0, 10, buffer)
+                        write_safe_line(buffer, current_font)
                         buffer = ""
                     current_font = font
-                if pdf.get_string_width(buffer + char) > max_width:
-                    pdf.set_font(current_font, size=12)
-                    pdf.multi_cell(0, 10, buffer)
+
+                if pdf.get_string_width(char) > 180:
+                    write_safe_line(char, font)
+                elif pdf.get_string_width(buffer + char) > 180:
+                    write_safe_line(buffer, current_font)
                     buffer = char
                 else:
                     buffer += char
+
             if buffer:
-                pdf.set_font(current_font, size=12)
-                pdf.multi_cell(0, 10, buffer)
+                write_safe_line(buffer, current_font)
 
         pdf.output(filepath)
 
