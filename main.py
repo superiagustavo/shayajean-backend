@@ -51,18 +51,10 @@ async def generate_pdf(request: Request):
         pdf.ln(5)
 
         pdf.set_font("SegoeEmoji", size=12)
+
+        # Modificação para quebra automática de linha
         for line in content.split('\n'):
-            words = line.split(' ')
-            current_line = ""
-            for word in words:
-                test_line = f"{current_line} {word}" if current_line else word
-                if pdf.get_string_width(test_line) < 180:
-                    current_line = test_line
-                else:
-                    pdf.multi_cell(0, 10, current_line)
-                    current_line = word
-            if current_line:
-                pdf.multi_cell(0, 10, current_line)
+            pdf.multi_cell(0, 10, line)  # Utilizando multi_cell diretamente para quebra automática
 
         pdf.output(filepath)
 
